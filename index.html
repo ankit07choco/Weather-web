@@ -3,127 +3,259 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Weather App - By Ankit Chakraborty❤️</title>
+  <title>Weather App</title>
+
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
-    body{margin:0;font-family:Inter,system-ui,sans-serif;background:linear-gradient(180deg,#0a192f,#172a45);color:white;min-height:100vh;padding:20px;}
-    h1{text-align:center;margin-bottom:10px;}
-    .container{max-width:1200px;margin:0 auto;}
-    .search-bar{display:flex;justify-content:center;gap:10px;margin-bottom:20px;}
-    input,button,select{padding:10px;border-radius:8px;border:none;}
-    input{width:200px;}
-    button{cursor:pointer;background:#3b82f6;color:white;}
-    .weather-section{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;}
-    .card{background:rgba(255,255,255,0.1);padding:20px;border-radius:12px;text-align:center;backdrop-filter:blur(8px);}
-    .forecast,.comparison{margin-top:30px;}
-    .forecast-grid{display:flex;overflow-x:auto;gap:10px;padding-bottom:10px;}
-    .forecast-item{flex:0 0 auto;background:rgba(255,255,255,0.1);padding:10px;border-radius:10px;min-width:100px;text-align:center;}
-    #map{height:300px;border-radius:12px;margin-top:20px;}
+    body{margin:0;font-family:Inter,system-ui;background:linear-gradient(180deg,#0a192f,#172a45);color:white;padding:20px;transition:0.3s}
+    .light{background:linear-gradient(180deg,#e0f2fe,#ffffff);color:#111}
+    h1{text-align:center}
+    .container{max-width:1200px;margin:auto}
+    .search-bar{display:flex;gap:10px;justify-content:center;margin-bottom:20px;flex-wrap:wrap}
+    input,button,select{padding:10px;border-radius:8px;border:none}
+    button{cursor:pointer;background:#3b82f6;color:white}
+    .card{background:rgba(255,255,255,0.1);padding:20px;border-radius:12px;text-align:center}
+    .weather-section{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    #map{height:300px;margin-top:20px;border-radius:12px}
+    .alert{margin-top:15px;padding:10px;border-radius:8px;background:rgba(255,0,0,0.2)}
+    .advice{margin-top:10px;padding:10px;border-radius:8px;background:rgba(0,255,150,0.15)}
+    .comparison{
+  margin-top:20px;
+  padding:15px;
+  border-radius:12px;
+  background:rgba(255,255,255,0.1);
+}
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🌤️ Weather Now — Enhanced</h1>
-    <div class="search-bar">
-      <input id="cityInput1" placeholder="Enter City 1" />
-      <input id="cityInput2" placeholder="Enter City 2 (optional)" />
-      <select id="unitsSelect">
-        <option value="metric">°C</option>
-        <option value="imperial">°F</option>
-      </select>
-      <button id="searchBtn">Search</button>
-    </div>
+<div class="container">
+  <h1>🌤️ Weather Pro++ (Travel Smart)</h1>
 
-    <div class="weather-section">
-      <div class="card" id="weather1">Weather data for city 1 will appear here</div>
-      <div class="card" id="weather2">Weather data for city 2 will appear here</div>
-    </div>
-
-    <div class="forecast">
-      <h2>5-Day Forecast</h2>
-      <div class="forecast-grid" id="forecastGrid"></div>
-    </div>
-
-    <div class="comparison">
-      <h2>City Comparison</h2>
-      <div id="comparisonResult">Enter two cities to compare their weather.</div>
-    </div>
-
-    <div id="map"></div>
+  <div class="search-bar">
+    <input id="cityInput1" placeholder="From City" />
+    <input id="cityInput2" placeholder="To City" />
+    <select id="unitsSelect">
+      <option value="metric">°C</option>
+      <option value="imperial">°F</option>
+    </select>
+    <button onclick="searchWeather()">Search</button>
+    <button onclick="getLocationWeather()">📍 Use My Location</button>
+    <button onclick="toggleTheme()">🌗 Toggle Theme</button>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-  <script>
-    const API_KEY = '99917bbf786bc9de41ebd51779b26b2c';
-    const weather1 = document.getElementById('weather1');
-    const weather2 = document.getElementById('weather2');
-    const forecastGrid = document.getElementById('forecastGrid');
-    const comparisonResult = document.getElementById('comparisonResult');
+  <div class="weather-section">
+    <div class="card" id="weather1"></div>
+    <div class="card" id="weather2"></div>
+  </div>
 
-    const map = L.map('map').setView([20, 78], 4);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+  <canvas id="chart"></canvas>
+  <div id="map"></div>
+</div>
+<div class="comparison" id="comparisonBox">
+  <h2>📊 Comparison</h2>
+  <p>Enter two cities to compare weather data.</p>
+</div>
 
-    async function fetchWeather(city, units){
-      const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}&units=${units}`);
-      if(!res.ok) throw new Error('City not found');
-      return res.json();
-    }
+<script>
+const API_KEY = '99917bbf786bc9de41ebd51779b26b2c';
 
-    async function fetchForecast(city, units){
-      const res = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${API_KEY}&units=${units}`);
-      const data = await res.json();
-      forecastGrid.innerHTML = '';
-      for(let i=0;i<data.list.length;i+=8){
-        const item=data.list[i];
-        const day=new Date(item.dt*1000).toLocaleDateString('en-US',{weekday:'short'});
-        forecastGrid.innerHTML+=`<div class="forecast-item"><div>${day}</div><img src="https://openweathermap.org/img/wn/${item.weather[0].icon}.png"/><div>${Math.round(item.main.temp_min)}° / ${Math.round(item.main.temp_max)}°</div><div>${item.weather[0].main}</div></div>`;
-      }
-    }
+const map = L.map('map').setView([20,78],4);
 
-    function renderWeather(data, element, units){
-      const unitSymbol = units==='metric'?'°C':'°F';
-      element.innerHTML = `
-        <h2>${data.name}, ${data.sys.country}</h2>
-        <img src="https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png" />
-        <h3>${Math.round(data.main.temp)}${unitSymbol}</h3>
-        <p>${data.weather[0].description}</p>
-        <p>Feels Like: ${Math.round(data.main.feels_like)}${unitSymbol}</p>
-        <p>Humidity: ${data.main.humidity}%</p>
-        <p>Wind: ${data.wind.speed}${units==='metric'?' m/s':' mph'}</p>
-        <p><strong>Max:</strong> ${Math.round(data.main.temp_max)}${unitSymbol} | <strong>Min:</strong> ${Math.round(data.main.temp_min)}${unitSymbol}</p>
-      `;
-    }
+const normalLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png');
+const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
 
-    document.getElementById('searchBtn').addEventListener('click', async()=>{
-      const city1=document.getElementById('cityInput1').value.trim();
-      const city2=document.getElementById('cityInput2').value.trim();
-      const units=document.getElementById('unitsSelect').value;
-      if(!city1)return alert('Please enter at least one city.');
-      try{
-        const data1=await fetchWeather(city1,units);
-        renderWeather(data1,weather1,units);
-        map.setView([data1.coord.lat,data1.coord.lon],8);
-        fetchForecast(city1,units);
+normalLayer.addTo(map);
 
-        if(city2){
-          const data2=await fetchWeather(city2,units);
-          renderWeather(data2,weather2,units);
-          compareCities(data1,data2,units);
-        } else {
-          weather2.innerHTML='Weather data for city 2 will appear here';
-          comparisonResult.textContent='Enter two cities to compare their weather.';
-        }
-      }catch(err){alert(err.message);}
-    });
+L.control.layers({"Normal": normalLayer,"Satellite": satelliteLayer}).addTo(map);
 
-    function compareCities(c1,c2,units){
-      const unitSymbol = units==='metric'?'°C':'°F';
-      comparisonResult.innerHTML = `
-        <p>${c1.name}: ${Math.round(c1.main.temp)}${unitSymbol}, Humidity ${c1.main.humidity}%</p>
-        <p>${c2.name}: ${Math.round(c2.main.temp)}${unitSymbol}, Humidity ${c2.main.humidity}%</p>
-        <p><strong>${c1.main.temp>c2.main.temp?c1.name:c2.name}</strong> is warmer today.</p>
-      `;
-    }
-  </script>
+let markers = [];
+let chart;
+
+function clearMarkers(){markers.forEach(m=>map.removeLayer(m));markers=[];}
+
+function addMarker(lat, lon, city){
+  const marker = L.marker([lat, lon]).addTo(map).bindPopup(`<b>${city}</b>`).openPopup();
+  markers.push(marker);
+  map.setView([lat, lon], 6);
+}
+
+async function fetchWeather(city,units){
+  const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}&units=${units}`);
+  return res.json();
+}
+
+async function fetchForecast(city,units){
+  const res = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${API_KEY}&units=${units}`);
+  return res.json();
+}
+
+function generateAdvice(data){
+  const temp = data.main.temp;
+  const condition = data.weather[0].main.toLowerCase();
+  let advice = [], alerts=[];
+
+  if(condition.includes('rain')){advice.push('☔ Carry umbrella');alerts.push('Rain expected');}
+  if(condition.includes('clear') && temp>30){advice.push('🧴 Use sunscreen','🕶️ Wear sunglasses');}
+  if(temp>35){alerts.push('🔥 Heatwave');advice.push('💧 Stay hydrated');}
+  if(temp<10){advice.push('🧥 Wear warm clothes');}
+  if(data.wind.speed>10){alerts.push('🌬️ Strong winds');}
+
+  return {advice,alerts};
+}
+
+function generateTravelAdvice(c1, c2){
+  const advice = [];
+  const temp = c2.main.temp;
+  const condition = c2.weather[0].main.toLowerCase();
+
+  // Temperature-based logic (absolute, not just comparison)
+  if(temp >= 35){
+    advice.push('🔥 Very hot at destination');
+    advice.push('🧴 Carry sunscreen & stay hydrated');
+    advice.push('👕 Wear light clothes');
+  }
+  else if(temp >= 25 && temp < 35){
+    advice.push('☀️ Warm weather');
+    advice.push('👕 Light clothes recommended');
+  }
+  else if(temp >= 15 && temp < 25){
+    advice.push('🌤️ Pleasant weather');
+    advice.push('🙂 Comfortable for travel');
+  }
+  else if(temp < 15){
+    advice.push('❄️ Cold weather');
+    advice.push('🧥 Carry warm clothes');
+  }
+
+  // Rain check
+  if(condition.includes('rain')){
+    advice.push('☔ Carry umbrella');
+  }
+
+  // Wind
+  if(c2.wind.speed > 10){
+    advice.push('🌬️ Windy conditions, be careful');
+  }
+
+  // Activity suggestion
+  if(condition.includes('clear')){
+    advice.push('🏃 Good for outdoor activities');
+  } else if(condition.includes('rain')){
+    advice.push('🏠 Better for indoor activities');
+  }
+
+  // Comparison (optional info, not advice)
+  if(c2.main.temp > c1.main.temp){
+    advice.push(`📈 ${c2.name} is hotter than ${c1.name}`);
+  } else {
+    advice.push(`📉 ${c2.name} is cooler than ${c1.name}`);
+  }
+
+  return advice;
+}
+
+function renderWeather(data,el,units){
+  const u = units==='metric'?'°C':'°F';
+  const {advice,alerts}=generateAdvice(data);
+
+  el.innerHTML=`
+    <h2>${data.name}</h2>
+    <h3>${Math.round(data.main.temp)}${u}</h3>
+    <p>${data.weather[0].description}</p>
+    <p>Humidity: ${data.main.humidity}%</p>
+    <p>Wind: ${data.wind.speed}</p>
+    <p>🌅 ${new Date(data.sys.sunrise*1000).toLocaleTimeString()}</p>
+    <p>🌇 ${new Date(data.sys.sunset*1000).toLocaleTimeString()}</p>
+    ${alerts.length?`<div class='alert'><b>⚠ Alerts:</b><br>${alerts.join('<br>')}</div>`:''}
+    ${advice.length?`<div class='advice'><b>💡 Advice:</b><br>${advice.join('<br>')}</div>`:''}
+  `;
+}
+
+function drawChart(data){
+  const temps=data.list.slice(0,8).map(i=>i.main.temp);
+  const labels=data.list.slice(0,8).map(i=>new Date(i.dt*1000).getHours()+":00");
+  if(chart) chart.destroy();
+  chart=new Chart(document.getElementById('chart'),{type:'line',data:{labels,datasets:[{label:'Temp',data:temps}]}});
+}
+
+async function searchWeather(){
+  clearMarkers();
+  const city1=cityInput1.value;
+  const city2=cityInput2.value;
+  const units=unitsSelect.value;
+
+  const data1=await fetchWeather(city1,units);
+  renderWeather(data1,weather1,units);
+  addMarker(data1.coord.lat,data1.coord.lon,data1.name);
+
+  const forecast=await fetchForecast(city1,units);
+  drawChart(forecast);
+
+  if(city2){
+    const data2=await fetchWeather(city2,units);
+    renderWeather(data2,weather2,units);
+    addMarker(data2.coord.lat,data2.coord.lon,data2.name);
+
+    const travelAdvice=generateTravelAdvice(data1,data2);
+    weather2.innerHTML+=`<div class='advice'><b>🚗 Travel Advice:</b><br>${travelAdvice.join('<br>')}</div>`;
+
+    renderComparison(data1, data2, units);
+  }
+}
+
+function getLocationWeather(){
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    clearMarkers();
+    const {latitude,longitude}=pos.coords;
+    const units=unitsSelect.value;
+    const res=await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=${units}`);
+    const data=await res.json();
+    renderWeather(data,weather1,units);
+    addMarker(latitude,longitude,data.name);
+  });
+}
+function renderComparison(c1, c2, units){
+  const u = units==='metric'?'°C':'°F';
+
+  const rain1 = c1.rain?.['1h'] || 0;
+  const rain2 = c2.rain?.['1h'] || 0;
+
+  const html = `
+    <h2>📊 ${c1.name} vs ${c2.name}</h2>
+
+    <p>🌡️ Temperature: 
+      <b>${Math.round(c1.main.temp)}${u}</b> | 
+      <b>${Math.round(c2.main.temp)}${u}</b>
+    </p>
+
+    <p>💧 Humidity: 
+      <b>${c1.main.humidity}%</b> | 
+      <b>${c2.main.humidity}%</b>
+    </p>
+
+    <p>🌧️ Rain (1h): 
+      <b>${rain1}</b> | 
+      <b>${rain2}</b>
+    </p>
+
+    <p>🌅 Sunrise: 
+      ${new Date(c1.sys.sunrise*1000).toLocaleTimeString()} | 
+      ${new Date(c2.sys.sunrise*1000).toLocaleTimeString()}
+    </p>
+
+    <p>🌇 Sunset: 
+      ${new Date(c1.sys.sunset*1000).toLocaleTimeString()} | 
+      ${new Date(c2.sys.sunset*1000).toLocaleTimeString()}
+    </p>
+  `;
+
+  document.getElementById('comparisonBox').innerHTML = html;
+}
+
+function toggleTheme(){document.body.classList.toggle('light');}
+</script>
 </body>
 </html>
